@@ -1,0 +1,496 @@
+"""Utils to load experimental datasets of cells.
+
+Lead Author: Adele Myers
+
+Analysis for the manuscript: Septins regulate border cell shape and surface geometry downstream of Rho (Gabbert et al 2022).
+
+Inspired by Geomstats’ notebook: Cell Shape Analysis (Miolane et al 2022).
+
+"""
+
+import glob
+import math as m
+import os
+
+# for septin cell alignment
+import cv2
+import geomstats.backend as gs
+import geomstats.datasets.utils as data_utils
+
+import numpy as np
+import skimage.io as skio
+
+from geomstats.geometry.pre_shape import PreShapeSpace
+
+from skimage import measure
+from skimage.filters import threshold_otsu
+
+import dyn.dyn.features.basic as basic
+
+
+M_AMBIENT = 2
+
+
+def _septin_tif_video_to_lists(tif_path):
+    """Convert a cell video into two trajectories of contours and images.
+
+    special for septin because they are rgb images
+
+    Parameters
+    ----------
+    tif_path : absolute path of video in .tif format.
+
+    Returns
+    -------
+    contours_list : list of arrays
+        List of 2D coordinates of points defining the contours of each cell
+        within the video.
+    imgs_list : list of array
+        List of images in the input video.
+    """
+    img_stack_list = []
+    for path in tif_path:
+        img_stack_list.append(cv2.imread(tif_path[0], 0))
+    img_stack = np.array(img_stack_list)
+    contours_list = []
+    imgs_list = []
+    for img in img_stack:
+        imgs_list.append(img)
+        thresh = threshold_otsu(img)
+        binary = img > thresh
+        contours = measure.find_contours(binary, 0.8)
+        lengths = [len(c) for c in contours]
+        max_length = max(lengths)
+        index_max_length = lengths.index(max_length)
+        contours_list.append(contours[index_max_length])
+
+    return contours_list, imgs_list
+
+
+def _interpolate(curve, n_sampling_points):
+    """Interpolate a discrete curve with nb_points from a discrete curve.
+
+    Parameters
+    ----------
+    curve : array-like, shape=[n_points, 2]
+    n_sampling_points : int
+
+    Returns
+    -------
+    interpolation : array-like, shape=[n_sampling_points, 2]
+       Discrete curve with n_sampling_points
+    """
+    old_length = curve.shape[0]
+    interpolation = np.zeros((n_sampling_points, 2))
+    incr = old_length / n_sampling_points
+    pos = np.array(0.0, dtype=np.float32)
+    for i in range(n_sampling_points):
+        index = int(np.floor(pos))
+        interpolation[i] = curve[index] + (pos - index) * (
+            curve[(index + 1) % old_length] - curve[index]
+        )
+        pos += incr
+    return gs.array(interpolation, dtype=gs.float32)
+
+
+def _remove_consecutive_duplicates(curve, tol=1e-2):
+    """Preprocess curve to ensure that there are no consecutive duplicate points.
+
+    Returns
+    -------
+    curve : discrete curve
+    """
+    dist = curve[1:] - curve[:-1]
+    dist_norm = gs.sqrt(gs.sum(dist**2, axis=1))
+
+    if gs.any(dist_norm < tol):
+        for i in range(len(curve) - 2):
+            if gs.sqrt(gs.sum((curve[i + 1] - curve[i]) ** 2, axis=0)) < tol:
+                curve[i + 1] = (curve[i] + curve[i + 2]) / 2
+
+    return curve
+
+
+def _exhaustive_align(curve, base_curve):
+    """Project a curve in shape space.
+
+    This happens in 2 steps:
+    - remove translation (and scaling?) by projecting in pre-shape space.
+    - remove rotation by exhaustive alignment minimizing the L² distance.
+
+    Returns
+    -------
+    aligned_curve : discrete curve
+    """
+    n_sampling_points = curve.shape[-2]
+    preshape = PreShapeSpace(m_ambient=M_AMBIENT, k_landmarks=n_sampling_points)
+
+    nb_sampling = len(curve)
+    distances = gs.zeros(nb_sampling)
+    for shift in range(nb_sampling):
+        reparametrized = gs.array(
+            [curve[(i + shift) % nb_sampling] for i in range(nb_sampling)]
+        )
+        aligned = preshape.align(point=reparametrized, base_point=base_curve)
+        distances[shift] = preshape.embedding_metric.norm(
+            gs.array(aligned) - gs.array(base_curve)
+        )
+    shift_min = gs.argmin(distances)
+    reparametrized_min = gs.array(
+        [curve[(i + shift_min) % nb_sampling] for i in range(nb_sampling)]
+    )
+    aligned_curve = preshape.align(point=reparametrized_min, base_point=base_curve)
+    return aligned_curve
+
+
+
+def load_trajectory_of_border_cells(n_sampling_points=10):
+    """Load trajectories (or time-series) of border cell clusters.
+
+    The marker used for imaging is a GFP tagged marker of F-actin markers.
+
+    Notes
+    -----
+    There are 25 images (frames) per .tif video.
+    There are 16 videos (trajectories).
+
+    In each movie, there is a group of cells called the "border cell cluster", i.e.
+    a tightly packed group of 5-7 cells that coordinate their movement as they move.
+    They look (and in many ways behave) as a single cell. They move within
+    a large structure, the egg chamber: we say that they "migrate".
+
+    At some point in their migration, the cluster shows has a "lead protrusion"
+    and sometimes the cluster is compact and lack this protrusion.
+
+    The movies from this dataset, i.e. labeled 33623, 59080, and 104438 are actually of
+    single cells (one cell within the cluster) or sometimes two cells in the cluster
+    labeled with the rest of the cells in the cluster being dark.
+
+    The movies labeled "33623" represents the control case, and shows a single cell as
+    the rest of the cells in the cluster are dark.
+
+    The movies labeled "59080" and "104438" correspond to knockdowns of proteins,
+    where we anticipate the following shape changes:
+    - cells less cohesive,
+    - producing very small thin protrusions.
+
+    See Also
+    --------
+    - datasets/border_cell_cluster.png
+    - datasets/border_cell_cluster.avi
+
+    References
+    ----------
+    Campanale, Mondo, Montell (2022).
+    Specialized protrusions coordinate migratory border cell cluster cohesion
+    via Scribble, Cdep, and Rac.
+    https://www.biorxiv.org/content/10.1101/2022.01.04.474957v1.full
+
+    Parameters
+    ----------
+    n_sampling_points : int
+        Number of points sampled along the contour of a cell.
+
+    Returns
+    -------
+    centers_traj : array-like, shape=[16, 25, 2]
+        2D coordinates of the barycenter of each cell's contours,
+        for each of the 16 videos, for each of the 25 frames per video.
+    shapes_traj : array-like, shape=[16, 25, n_sampling_points, 2]
+        2D coordinates of the sampling points defining the contour of each cell,
+        for each of the 16 videos, for each of the 25 frames per video.
+    imgs_traj : array-like, shape=[16, 25, 512, 512]
+        Images defining the videos, for each of the 16 videos.
+    labels : array-like, shape=[16,]
+        Phenotype associated with each trajectory (video).
+    """
+    datasets_dir = os.path.dirname(os.path.realpath(__file__))
+    list_tifs = glob.glob(
+        os.path.join(datasets_dir, "single_border_protusion_cells/*.tif")
+    )
+
+    n_traj = len(list_tifs)
+    one_img_stack = skio.imread(list_tifs[0], plugin="tifffile")
+    n_time_points, height, width = one_img_stack.shape
+
+    centers_traj = gs.zeros((n_traj, n_time_points, 2))
+    shapes_traj = gs.zeros((n_traj, n_time_points, n_sampling_points, 2))
+    imgs_traj = gs.zeros((n_traj, n_time_points, height, width))
+    labels = []
+    for i_traj, video_path in enumerate(list_tifs):
+        video_name = os.path.basename(video_path)
+        print(f"\n Processing trajectory {i_traj+1}/{n_traj}.")
+
+        print(f"Converting {video_name} into list of cell contours...")
+        contours_list, imgs_list = _tif_video_to_lists(video_path)
+
+        labels.append(int(video_name.split("_")[0]))
+        for i_contour, (contour, img) in enumerate(zip(contours_list, imgs_list)):
+            interpolated = _interpolate(contour, n_sampling_points)
+            cleaned = _remove_consecutive_duplicates(interpolated)
+            center = gs.mean(cleaned, axis=-2)
+            centered = cleaned - center[..., None, :]
+            centers_traj[i_traj, i_contour] = center
+            shapes_traj[i_traj, i_contour] = centered
+            if img.shape != (height, width):
+                print(
+                    "Found image of a different size: "
+                    f"{img.shape} instead of {height, width}. "
+                    "Skipped image (not cell contours)."
+                )
+                continue
+            imgs_traj[i_traj, i_contour] = gs.array(img.astype(float).T)
+    labels = gs.array(labels)
+    return centers_traj, shapes_traj, imgs_traj, labels
+
+
+def _find_circle(tif_path):
+    """Find a circle.
+
+    Take a tif, returns the coordinates of the small circle that was placed on the
+    septin cell files.
+
+    The key function here is cv2.HoughCircles. But we needed very specific
+    parameters in order to get the function to detect our cirlces.
+    - minDist = 100 we knew that there was only one cirlce in the image, so we set this
+        to be high so that there was no way to get a false duplicate
+    - param1 = 100 we set this parameter to be high because "threshold value shough
+    normally be higher, such as 300 or normally exposed and contrasty images."
+    - param2 = 10 we set this parameter to be low for detecting small circles
+    - minRadius =1, maxRadius = 10. We knew that our cirlces were only a few pixels wide
+    (5), so we set these parameters acordingly
+    """
+    img = skio.imread(tif_path, plugin="tifffile")
+
+    # this gives y first and then x. we will have to reverse.
+    circle = cv2.HoughCircles(
+        img,
+        cv2.HOUGH_GRADIENT,
+        dp=1,
+        minDist=100,
+        param1=100,
+        param2=10,
+        minRadius=1,
+        maxRadius=10,
+    )
+
+    circle = np.array(circle)
+
+    if not circle.any():
+        print("No circles found")
+    else:
+        # reverses the order of x and y so that x comes first.
+        x_circle = circle[0][0][1]
+        y_circle = circle[0][0][0]
+        circle = np.array([x_circle, y_circle])
+
+    print(circle)
+    return circle
+
+
+def _determine_angle_sign(left_vector, circle_vector):
+    """Find sign of angle to rotate cell about.
+
+    This function tells us whether the angle that _septin_rotation_angle returns
+    is a positive angle or a negative angle. We need this function because the
+    arccos function that we use to find the magnitude of the angle only returns
+    positive values, which means that the "_septin_align" fucntion will not know
+    whether it needs to rotate the cell to the left or to the right in order to
+    align the dot with the left side of the image frame.
+
+    Thus, we use the cross product of the two vectors to determine whether the
+    angle between left_vector and circle_vector is positive (i.e. the curve must be
+    rotated counter clockwise in order to align the dot with the left edge) or
+    negative (i.e. the curve must be rotated clockwise).
+
+    If the z component of the cross product between these two vectors is negative,
+    that means that the angle is positive.
+    if the z component of the cross product between these two vectors is positive,
+    that means that the angle is negative.
+
+    Input vectors:
+    --------------
+    left_vector: 2D vector. tells us the location of the point that we are rotating
+    the cell to
+    circle_vector: 2D vector. tells us the location of the dot. i.e. the location
+    of the part of
+    the cell that we want to end up at the left side of the image.
+
+    Returns:
+    -------
+    positive: tells whether the angle from the dot to the left point is positive or not.
+    """
+    threeD_left_vector = np.array([left_vector[0], left_vector[1], 0])
+    threeD_circle_vector = np.array([circle_vector[0], circle_vector[1], 0])
+
+    cross_product = np.cross(threeD_left_vector, threeD_circle_vector)
+
+    if cross_product[2] > 0:
+        positive = True
+    else:
+        positive = False
+
+    return positive
+
+
+def _hack_determine_angle_sign(left_vector, circle_vector):
+    if left_vector[1] < circle_vector[1]:
+        positive = True
+    else:
+        positive = False
+
+    return positive
+
+
+def _septin_rotation_angle(cell_center, tif_path):
+    """Find rotation angle.
+
+    This function aligns the curves so that they are pointing in the direction of
+    motion.
+    More specifically, each file is marked by a small dot. we are aligning the curves
+    so that the small dot would fall on the left side of the picture frame.
+    used tutorials:
+    https://pyimagesearch.com/2014/07/21/detecting-circles-images-using-opencv-hough-circles/
+    https://www.geeksforgeeks.org/how-to-detect-shapes-in-images-in-python-using-opencv/
+
+
+    x_left and y_left are set at the left side of the image frame. the y_left
+    coordiante is set at the same coordinate as the cell_center y coordinate so
+    that we have an appropriate angle for which we can rotate the cell so that
+    the "dotted" position is facing the left of the image.
+
+    the picture frame is a square with side lengths 512, so the center of the left
+    edge falls at (0,256)
+
+    returns
+    -------
+    curve aligned so that the "direction of motion" is facing to the right.
+    """
+    # coordinates of the left middle of the image. determine this based on what
+    # x and y circle are.
+    x_left = 0
+    y_left = cell_center[1]
+    
+    circle = _find_circle(tif_path)
+    x_circle = circle[0]
+    y_circle = circle[1]
+
+
+    # defining points
+    left_point = np.array([x_left, y_left])
+    circle_point = np.array([x_circle, y_circle])
+
+    cell_center_tensor = cell_center
+    cell_center = np.array(cell_center_tensor)
+
+    # defining vector from center of curve to these points
+    left_vector = left_point - cell_center
+    circle_vector = circle_point - cell_center
+
+    # unit vectors
+    left_vector_u = left_vector / np.linalg.norm(left_vector)
+    circle_vector_u = circle_vector / np.linalg.norm(circle_vector)
+
+    positive = _hack_determine_angle_sign(left_vector, circle_vector)
+
+    # now, find the angle between the two vectors
+    if positive:
+        theta = np.arccos(np.clip(np.dot(left_vector_u, circle_vector_u), -1.0, 1.0))
+    else:
+        theta = -np.arccos(np.clip(np.dot(left_vector_u, circle_vector_u), -1.0, 1.0))
+
+    return theta
+
+
+def _septin_align(curve, theta):
+
+    rotation = np.array([[m.cos(theta), -m.sin(theta)], [m.sin(theta), m.cos(theta)]])
+
+    aligned_curve = curve @ rotation.T
+
+    return aligned_curve
+
+
+def load_septin_cells(group, n_sampling_points):
+    """Load dataset of septin control cells.
+
+    There are three groups that we are considering: control, Septin Knockdown,
+    Septin Overexpression.
+
+    Notes
+    -----
+    There are 36 tif files in Control -> binary files
+    There are 45 tif files in Septin Knockdown -> binary files
+    There are 36 tif files in Septin Overexpression -> binary files
+    """
+    dataset_dir = os.path.dirname(os.path.realpath(__file__))
+
+    group_path = os.path.join(
+        dataset_dir, "septin_groups/" + group + "/dotted_binary_images/*.tif"
+    )
+    group_tifs = glob.glob(group_path)
+    print("Loading " + group + " data")
+    print("n_sampling_points= " + str(n_sampling_points))
+
+    img_stack = skio.imread(group_tifs, plugin="tifffile")
+    n_images, height, width = img_stack.shape
+    print(img_stack.shape)
+
+    cell_centers = gs.zeros((n_images, 2))
+    cell_shapes = gs.zeros((n_images, n_sampling_points, 2))
+    cell_imgs = gs.zeros((n_images, height, width))
+
+    # This converts all the images into a list of contours and images.
+    contours_list, imgs_list = _tif_video_to_lists(group_tifs)
+    group_labels = []
+
+    theta = []
+    circle_coords = []
+    lefts = []
+
+    for i_contour, (contour, img) in enumerate(zip(contours_list, imgs_list)):
+        interpolated = _interpolate(contour, n_sampling_points)
+        cleaned = _remove_consecutive_duplicates(interpolated)
+        center = gs.mean(cleaned, axis=-2)
+        centered = cleaned - center[..., None, :]
+        cell_centers[i_contour] = center
+        cell_shapes[i_contour] = centered
+        if img.shape != (height, width):
+            print(
+                "Found image of a different size: "
+                f"{img.shape} instead of {height, width}. "
+                "Skipped image (not cell contours)."
+            )
+            continue
+        cell_imgs[i_contour] = gs.array(img.astype(float).T)
+        group_labels.append(group)
+
+        circle_coords.append(_find_circle(group_tifs[i_contour]))
+        theta.append(_septin_rotation_angle(center, group_tifs[i_contour]))
+        lefts.append([0, center[1]])
+
+    theta_array = np.array(theta)
+    circle_coords_array = np.array(circle_coords)
+    lefts_array = np.array(lefts)
+
+    #     print("- Cell shapes: quotienting scaling (length).")
+    #     for i_cell, cell in enumerate(cell_shapes):
+    #         cell_shapes[i_cell] = cell / basic.perimeter(cell_shapes[i_cell])
+
+    print("- Cell shapes: properly aligning in direction of motion.")
+
+    for i_cell, cell_shape in enumerate(cell_shapes):
+
+        print("theta " + str(i_cell) + " : " + str(theta[i_cell]))
+        cell_shapes[i_cell] = _septin_align(cell_shape, theta[i_cell])
+
+    return (
+        cell_centers,
+        cell_shapes,
+        cell_imgs,
+        group_labels,
+        theta_array,
+        circle_coords_array,
+        lefts_array,
+        group_tifs,
+    )
