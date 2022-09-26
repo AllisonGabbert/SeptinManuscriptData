@@ -1,3 +1,9 @@
+%% This workflow is based on code from:
+% N. P. Mitchell*, D. J. Cislo*, TubULAR: Tracking in toto deformations of
+% dynamic tissues via constrained maps. [biorxiv]
+% but is here adapted to use spherical harmonics
+
+%%
 % First change directories to where PLY meshes of cell clusters exist
 cd /mnt/data/3D_surface_models/3D_surface_models
 clear all
