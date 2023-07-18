@@ -1,0 +1,12 @@
+[submodule "imsane"]
+	path = imsane
+	url = https://github.com/idse/imsane
+[submodule "tubular"]
+	path = tubular
+	url = https://github.com/npmitchell/tubular
+[submodule "gptoolbox"]
+	path = gptoolbox
+	url = https://github.com/alecjacobson/gptoolbox
+[submodule "gut_matlab"]
+	path = gut_matlab
+	url = https://github.com/npmitchell/gut_matlab
