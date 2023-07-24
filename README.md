@@ -7,10 +7,10 @@ Some of this code can be used and modified to generate 3D models and perform spe
 
 ## Pre-requisites
 - MATLAB
-  -Deep Learning Toolbox
-  -Image Processing Toolbox
-  -Statistics and Machine Learning Toolbox
-  -Curve Fitting Toolbox   
+  - Deep Learning Toolbox
+  - Image Processing Toolbox
+  - Statistics and Machine Learning Toolbox
+  - Curve Fitting Toolbox   
 - ImageJ/FIJI
 - Ilastik
 - MeshLab
