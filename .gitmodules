@@ -7,6 +7,3 @@
 [submodule "gptoolbox"]
 	path = gptoolbox
 	url = https://github.com/alecjacobson/gptoolbox
-[submodule "gut_matlab"]
-	path = gut_matlab
-	url = https://github.com/npmitchell/gut_matlab
