@@ -43,7 +43,7 @@ overwrite = true ;
 overwrite2 = true ;
 % The number of Laplacian eigenvectors to calculate
 nModes = 1000;
-signalTypes = {'HH', 'radialu', 'dist'};
+signalTypes = {'radialu'} ; % 'HH', 'dist'}
 
 for jj = 1:length(dirs)
     fns = dir(fullfile(dirs{jj}, '*.ply')) ;
