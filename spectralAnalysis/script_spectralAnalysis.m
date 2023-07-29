@@ -3,19 +3,41 @@
 % dynamic tissues via constrained maps. [biorxiv]
 % but is here adapted to use spherical harmonics
 
-%%
+%% Prepare pathnames
+close all
+clc
+clearvars
+
 % First change directories to where PLY meshes of cell clusters exist
-cd /mnt/data/3D_surface_models/3D_surface_models
-clear all
-% There are three subdirectories
-dirs = {'septin_knockdown', 'wildtype_control', ...
-   'septin_overexpression' } ;
+datadir = pwd ;
+
+% Running this line in the script grabs the path of this script
+mfilePath = mfilename('fullpath');
+if contains(mfilePath,'LiveEditorEvaluationHelper')
+    mfilePath = matlab.desktop.editor.getActiveFilename;
+end
+[ scriptDir, scriptName ] = fileparts(mfilePath) ; 
+cd(scriptDir)
+
+%%
+% Define the subdirectories where different conditions are stored
+dirs = {'septin_knockdown', 'wildtype_control', 'septin_overexpression' } ;
+
+% Define the shorthand variables describing these conditions, in the same
+% order as the previous line.
 shorthand = {'KD', 'WT', 'OE'} ;
 
-% Download and add DECLab to the path: https://github.com/DillonCislo/DECLab
-addpath(genpath('/mnt/data/code/tubular/DECLab'))
-% Also download and add gptoolbox to the path: https://github.com/alecjacobson/gptoolbox
-addpath(genpath('/mnt/data/code/gptoolbox/mesh/'))
+% Add DECLab to the path: https://github.com/DillonCislo/DECLab
+% This is a submodule of the SeptinManuscriptData repo.
+addpath(genpath('../../DECLab/'))
+
+% Also download and add gptoolbox to the path.
+% This is already included in the SeptinManuscriptData repo.
+% https://github.com/alecjacobson/gptoolbox
+addpath(genpath('../gptoolbox/mesh/'))
+
+% Change back to data directory
+cd(datadir)
 
 blue    = [0.0000, 0.4470, 0.7410] ; % 1
 red     = [0.8500, 0.3250, 0.0980] ; % 2
@@ -40,11 +62,12 @@ addpath ../mnt/data/code/gut_matlab/plotting/shadedErrorBar/
 %% Default Options
 % overwrite previous results if on disk
 overwrite = true ;
-overwrite2 = true ;
+
 % The number of Laplacian eigenvectors to calculate
 nModes = 1000;
 signalTypes = {'radialu'} ; % 'HH', 'dist'}
 
+%% Iterate over each condition (each condition is stored in a unique dir)
 for jj = 1:length(dirs)
     fns = dir(fullfile(dirs{jj}, '*.ply')) ;
 
@@ -54,7 +77,7 @@ for jj = 1:length(dirs)
         mkdir(outdir)
     end
     
-    %%
+    %% Iterate over each PLY file surface
     for ii = 1:length(fns)
         fn = strrep(fns(ii).name, '.ply', '') ;
         disp(['ii = ' num2str(ii) ': ' fn])
@@ -63,11 +86,11 @@ for jj = 1:length(dirs)
             [fn '_powerSpectrum_' signalTypes{1} '.mat']) ;
         outfn2 = fullfile(outdir, ...
             [fn '_powerSpectrum_' signalTypes{2} '.mat']) ;
-        if ~exist(outfn1, 'file') || ~exist(outfn2, 'file') || overwrite || overwrite2
+        if ~exist(outfn1, 'file') || ~exist(outfn2, 'file') || overwrite 
 
             mesh = read_ply_mod(fullfile(fns(ii).folder, [fn '.ply'])) ;
-
-            % On which fields do we compute LBS
+        
+            % Conformally map to the unit sphere
             clf
             Ufn = fullfile(outdir, ...
                 [fn '_conformalMappingToUnitSphere.mat']) ;
@@ -103,42 +126,39 @@ for jj = 1:length(dirs)
                 %% plot the result
                 clf
                 subplot(2, 2, 1)
-                 trisurf(triangulation(mesh.f, mesh.v), 'facecolor', [0., 0., 0], ...
-                     'edgecolor', 'none', 'facealpha', 0.2); 
-                 hold on;
-                 trisurf(triangulation(mesh.f, Urescaled), 'facecolor', [0.5, 0.5, 0], ...
-                     'edgecolor', 'none', 'facealpha', 0.2); 
-                 hold on; 
-                 %  %h = plot(sphereModel) ;
-                 %  set(h, 'FaceAlpha', 0.2) ;
-                 %  set(h, 'EdgeColor', 'none')
-                 %  set(h, 'faceColor',  [1, 1, 0.2]) ;
-                 camlight
-                 axis equal ;
-                 grid off ;
-                 trisurf(triangulation(mesh.f, mesh.v), 'facecolor', [0.2, 0.2, 1],...
-                     'edgecolor', 'none', 'facealpha', 0.2)
-                 axis equal; 
-                 grid off ; % axis off ;
-                 subplot(2, 2, 2)
-                 trisurf(triangulation(mesh.f, Urescaled), ...
-                     'edgecolor', 'none', 'facevertexCdata', radii)
-                 axis equal ;
-                 grid off ;
-                 title('radial position of surface');
-                 clims = caxis ;
+                trisurf(triangulation(mesh.f, mesh.v), 'facecolor', [0., 0., 0], ...
+                 'edgecolor', 'none', 'facealpha', 0.2); 
+                hold on;
+                trisurf(triangulation(mesh.f, Urescaled), 'facecolor', [0.5, 0.5, 0], ...
+                 'edgecolor', 'none', 'facealpha', 0.2); 
+                hold on; 
 
-                 subplot(2, 2, 3)
-                 trisurf(triangulation(mesh.f, Urescaled), ...
-                     'edgecolor', 'none', 'facevertexCdata', radii0)
-                 axis equal ;
-                 grid off
-                 title('radius of mapped surface');
-                 caxis(clims)
+                camlight
+                axis equal ;
+                grid off ;
+                trisurf(triangulation(mesh.f, mesh.v), 'facecolor', [0.2, 0.2, 1],...
+                 'edgecolor', 'none', 'facealpha', 0.2)
+                axis equal; 
+                grid off ; % axis off ;
+                subplot(2, 2, 2)
+                trisurf(triangulation(mesh.f, Urescaled), ...
+                 'edgecolor', 'none', 'facevertexCdata', radii)
+                axis equal ;
+                grid off ;
+                title('radial position of surface');
+                clims = caxis ;
 
-                 set(gcf, 'color', 'w')
-                 figfn = fullfile(outdir,[ fn '_sphericalFit.png']) ;
-                 saveas(gcf, figfn)
+                subplot(2, 2, 3)
+                trisurf(triangulation(mesh.f, Urescaled), ...
+                 'edgecolor', 'none', 'facevertexCdata', radii0)
+                axis equal ;
+                grid off
+                title('radius of mapped surface');
+                caxis(clims)
+                
+                set(gcf, 'color', 'w')
+                figfn = fullfile(outdir,[ fn '_sphericalFit.png']) ;
+                saveas(gcf, figfn)
 
                 %% save the result
                 save(Ufn, 'U', 'Urescaled', 'radii', 'radii0', ...
@@ -202,7 +222,7 @@ for jj = 1:length(dirs)
                 
                 outfn = fullfile(outdir, ...
                     [fn '_powerSpectrum_' signalTypes{kk} '.mat']) ;
-                if ~exist(outfn, 'file') || overwrite || overwrite2
+                if ~exist(outfn, 'file') || overwrite 
                     if strcmpi(signalTypes{kk}, 'HH')
                         ff = H3d ;
                         titleStr = 'Laplace-Beltrami power spectrum of H' ;
@@ -224,11 +244,9 @@ for jj = 1:length(dirs)
                     bar(abs(rawPowers), 'FaceColor',colors(1, :),'EdgeColor','none')
                     xlabel('spherical harmonic index')
                     ylabel('spectral power')
-                    % subplot(1, 2, 2)
-                    % bar(abs(rawPowersNormV), 'FaceColor',colors(1, :),'EdgeColor','none')
+                    
                     sgtitle(titleStr);
-                    % xlabel('spherical harmonic index')
-                    % ylabel('spectral power - normed')
+                    
                     figfn = fullfile(outdir, ...
                         [fn '_powerSpectrum_' signalTypes{kk} '.png']) ;
                     saveas(gcf, figfn)
@@ -239,15 +257,14 @@ for jj = 1:length(dirs)
                     lls = 0:30 ;
                     dmyk = 1 ;
                     powers = zeros(numel(lls),1) ;
-                    % powersNormV = powers ;
+                    
                     for Lind = 1:numel(lls)
                         ll = lls(Lind) ;
                         powersLs = zeros(2*ll + 1, 1) ;
                         for qq = 1:(2*ll + 1)
                             llvals(dmyk)= ll ;
                             powersLs(qq) = abs(rawPowers(dmyk)) ;
-                            % powersNormV(Lind) = powersNormV(Lind) + abs(rawPowersNormV(dmyk)) ;
-                            % disp(['done accounting for dmyk=' num2str(dmyk) '-> L=' num2str(ll)])
+                            
                             dmyk = dmyk + 1 ;
                         end
                         powers(Lind) = (sum(powersLs)) ;
@@ -258,10 +275,7 @@ for jj = 1:length(dirs)
                     bar(lls, powers, 'FaceColor',colors(1, :),'EdgeColor','none')
                     xlabel('degree of roughness')
                     ylabel('spectral power')
-                    % subplot(1, 2, 2)
-                    % bar(lls, powersNormV, 'FaceColor',colors(1, :),'EdgeColor','none')
-                    % xlabel('degree of roughness')
-                    % ylabel('spectral power - normed')
+                    
                     sgtitle(titleStr)
                     figfn = fullfile(outdir, ...
                          [fn '_powerSpectrumSummed_' signalTypes{kk} '.pdf']) ;
@@ -281,7 +295,7 @@ for jj = 1:length(dirs)
         end
     end
 
-    %% Compare all surfaces
+    %% Compare all surfaces for this batch of PLYs
     for qq = 1:length(signalTypes)
         signalType = signalTypes{qq} ;
         for ii = 1:length(fns)
@@ -292,11 +306,8 @@ for jj = 1:length(dirs)
 
             if ii == 1
                 powersAll = powers ;
-                % powersAllNormV = powersNormV ;
             else
                 powersAll = cat(2, powersAll, powers) ;
-                % powersAllNormV = cat(2, powersAllNormV, powersNormV) ;
-                % assert(~all(powersNormV == powersAllNormV(:, 1)))
             end
         end
         clf
@@ -306,14 +317,6 @@ for jj = 1:length(dirs)
         title('Comparison across surfaces')
         saveas(gcf, fullfile(outdir, ...
             ['comparison_of_powerSpectra_' signalType '.pdf']))
-        
-        % clf
-        % bar(lls, powersAllNormV, 'edgecolor', 'none') 
-        % xlabel('degree of roughness')
-        % ylabel('spectral power')
-        % title('Comparison across surfaces -- normed')
-        % saveas(gcf, fullfile(outdir, ...
-        %    ['comparison_of_powerSpectraNormV_' signalType '.pdf']))
     
         % save stats for these powers
         save(fullfile(outdir, [signalType '_spectralPowers.mat']), ...
@@ -324,9 +327,6 @@ end
 
 %% Compare all experiment cases 
 close all
-% colors = [   0.9000    0.5500    0.5500
-%     0.5000    0.5000    0.5000
-%     0.6200    0.7600    0.8400] ;
 
 colors = [ 31, 177, 3; ...
     110,110,110; ...
@@ -336,81 +336,68 @@ clc
 meanPowers = {} ;
 stdPowers = {} ;
 stePowers = {} ;
-% for normV = [false] 
-    for qq = 1:length(signalTypes)
-        signalType = signalTypes{qq} ;
 
-        hs = {} ;
-        for pp = 1:length(dirs)
+for qq = 1:length(signalTypes)
+    signalType = signalTypes{qq} ;
 
-            outdir = dirs{pp} ;
-            load(fullfile(outdir, 'analysis', [signalType '_spectralPowers.mat']), ...
-                'powersAll',  'lls')
+    hs = {} ;
+    for pp = 1:length(dirs)
+
+        outdir = dirs{pp} ;
+        load(fullfile(outdir, 'analysis', [signalType '_spectralPowers.mat']), ...
+            'powersAll',  'lls')
 
 
-            meanPower = mean(powersAll, 2) ;
-            stdPower = std(powersAll, [], 2) ;
-            stePower = stdPower ./ sqrt(size(powersAll, 2)) ;
+        meanPower = mean(powersAll, 2) ;
+        stdPower = std(powersAll, [], 2) ;
+        stePower = stdPower ./ sqrt(size(powersAll, 2)) ;
 
-            if pp == 1
-                lls0 = lls ;
-            else
-                assert(all(lls == lls0)) ;
-            end
-            meanPowers{pp} = meanPower ;
-            stdPowers{pp} = stdPower ;
-            stePowers{pp}= stePower ;
-
-            lineProps = {'-','color', colors(pp, :)} ;
-            means = meanPower' ;
-            h =shadedErrorBar(lls, means, stdPower', ...
-                'lineProps', lineProps, 'patchSaturation', 0.2) ;
-            hold on;
-
-            ylim([0, Inf])
+        if pp == 1
+            lls0 = lls ;
+        else
+            assert(all(lls == lls0)) ;
         end
+        meanPowers{pp} = meanPower ;
+        stdPowers{pp} = stdPower ;
+        stePowers{pp}= stePower ;
 
-        legend(strrep(dirs, '_', ' '),'AutoUpdate','off')
+        lineProps = {'-','color', colors(pp, :)} ;
+        means = meanPower' ;
+        h =shadedErrorBar(lls, means, stdPower', ...
+            'lineProps', lineProps, 'patchSaturation', 0.2) ;
+        hold on;
 
-        % Now add stes
-
-        for pp = 1:length(dirs)
-            lineProps = {'-','color', colors(pp, :)} ;
-            errorbar(lls, meanPowers{pp}, stePowers{pp}, '.', 'color', colors(pp, :))
-            % h =shadedErrorBar(lls, meanPowers{pp}, stePowers{pp}, ...
-            %    'lineProps', lineProps, 'patchSaturation', 0.2) ;
-
-            % h.Annotation.LegendInformation.IconDisplayStyle = 'off';
-            % h.Annotation.LegendInformation.IconDisplayStyle = 'off';
-        end
-
-        xlabel('degree of roughness')
-        ylabel('spectral power')
-        % if normV
-        %     title('Comparison across conditions -- normed')
-        %     saveas(gcf, ['comparison_of_powerSpectraNormV_' signalType '.pdf'])
-        % else
-            title('Comparison across conditions')
-            saveas(gcf, ['comparison_of_powerSpectra_' signalType '.pdf'])
-        % end
-        
-        xlim([10, 20])
-        ylim([200,1200])
-        % ylim([0, 600])
-        axis square
-            saveas(gcf, ['comparison_of_powerSpectra_' signalType '_zoom2.pdf'])
-       close all
-
-       %% Save data
-       
-           save(['statistics_' signalTypes{qq} '.mat'], ...
-               'meanPowers', 'stdPowers', 'stePowers', 'dirs', 'lls')
-       
+        ylim([0, Inf])
     end
-% end
+
+    legend(strrep(dirs, '_', ' '),'AutoUpdate','off')
+
+    % Now add stes (standard error on the mean) 
+    for pp = 1:length(dirs)
+        lineProps = {'-','color', colors(pp, :)} ;
+        errorbar(lls, meanPowers{pp}, stePowers{pp}, '.', 'color', colors(pp, :))
+    end
+
+    xlabel('degree of roughness')
+    ylabel('spectral power')
+
+    title('Comparison across conditions')
+    saveas(gcf, ['comparison_of_powerSpectra_' signalType '.pdf'])
+
+    xlim([10, 20])
+    % ylim([200,1200]) 
+    axis square
+        saveas(gcf, ['comparison_of_powerSpectra_' signalType '_zoom2.pdf'])
+   close all
+
+   %% Save data
+   save(['statistics_' signalTypes{qq} '.mat'], ...
+       'meanPowers', 'stdPowers', 'stePowers', 'dirs', 'lls')
+
+end
 
 
-%% Bin powers
+%% Bin powers by their l value (which determines spatial scale of variation)
 qq = 2 ;
 load(['statistics_' signalTypes{qq} '.mat'], ...
                'meanPowers', 'stdPowers', 'stePowers', 'dirs', 'lls')
@@ -444,16 +431,6 @@ oe_unc = stePowers{3}(ind) ;
     clf;
     E = cat(3, kd_unc, wt_unc, oe_unc) ;
 
-    % Colors = [
-    %     0.90    0.55    0.55
-    %     0.5     0.5     0.5
-    %     0.62    0.76    0.84
-    %     0.89    0.10    0.11
-    %     0.12    0.47    0.70
-    %     ];
-    % Colors = reshape(Colors, [2 2 3]);
-
-
     colors = [ 31, 177, 3; ...
         110,110,110; ...
         203, 41,123] ./ 255.0 ;
@@ -465,8 +442,7 @@ oe_unc = stePowers{3}(ind) ;
     E = [kd_unc, wt_unc, oe_unc] ;
     superbar([1,2,3],[kd,wt,oe], 'E', E, 'P', P,...
         'BarFaceColor', Colors) ;
-    %, 'Orientation', 'v', ...
-    %        'ErrorbarStyle', 'I', 'PLineOffset', 0.1, 'PStarShowGT', false)
+    
     xticks([1,2,3])
     categories = {'KD', 'WT', 'OE'} ;
     xticklabels(categories)
@@ -517,7 +493,6 @@ for thres = 0
         0.89    0.10    0.11
         0.12    0.47    0.70
         ];
-    % Colors = reshape(Colors, [2 2 3]);
 
     P = [0,  pval_kdwt, pval_kdoe; ...
         pval_kdwt, 0, pval_wtoe;...
@@ -526,8 +501,7 @@ for thres = 0
     E = [kd_unc, wt_unc, oe_unc] ;
     superbar([1,2,3],[kd,wt,oe], 'E', E, 'P', P,...
         'BarFaceColor', Colors) ;
-    %, 'Orientation', 'v', ...
-    %        'ErrorbarStyle', 'I', 'PLineOffset', 0.1, 'PStarShowGT', false)
+    
     xticks([1,2,3])
     categories = {'KD', 'WT', 'OE'} ;
     xticklabels(categories)
@@ -535,6 +509,7 @@ for thres = 0
     outfn = sprintf('high_order_mode_comparison_lgt%02d_lt%02d.pdf', thres, upperThres) ;
     saveas(gcf, outfn)
     
+    % Save the data reflected in the plot
     outfn = sprintf('high_order_mode_comparison_lgt%02d_lt%02d.mat', thres, upperThres) ;
     save(outfn, 'P', 'E', 'means', 'categories')
     
