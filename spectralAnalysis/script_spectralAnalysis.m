@@ -27,6 +27,11 @@ dirs = {'septin_knockdown', 'wildtype_control', 'septin_overexpression' } ;
 % order as the previous line.
 shorthand = {'KD', 'WT', 'OE'} ;
 
+% Resolution of the PLYs, in um / voxel width. Make sure the PLYs are saved
+% with this resolution, and in isotropic resolution (same for x, y, and z)
+pix2um = 1.0 ;  % um / pixel
+
+
 % Add DECLab to the path: https://github.com/DillonCislo/DECLab
 % This is a submodule of the SeptinManuscriptData repo.
 addpath(genpath('../../DECLab/'))
@@ -89,6 +94,8 @@ for jj = 1:length(dirs)
         if ~exist(outfn1, 'file') || ~exist(outfn2, 'file') || overwrite 
 
             mesh = read_ply_mod(fullfile(fns(ii).folder, [fn '.ply'])) ;
+            % Convert mesh to microns
+            mesh.v = mesh.v * pix2um ;
         
             % Conformally map to the unit sphere
             clf

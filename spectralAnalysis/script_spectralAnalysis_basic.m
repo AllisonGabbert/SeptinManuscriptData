@@ -2,6 +2,13 @@
 % Here, we perform a spectral decomposition of the shapes of a set of 
 % surfaces stored on disk as PLY files. 
 %
+% The weight of each mode is the amount of deformation amplifying a mode
+% with unit norm. Note that vecnorm(V', 2, 2) == 1, so each mode has a
+% Euclidean norm of 1, and the amount of spectral weight amplifies this
+% deformation to match the amount of that pattern measured in the mesh
+% relative to a reference sphere. The reference sphere is obtained from the
+% mesh by conformalized mean curvature flow.
+%
 % This workflow is based on code from:
 % N. P. Mitchell*, D. J. Cislo*, TubULAR: Tracking in toto deformations of
 % dynamic tissues via constrained maps. [biorxiv]
@@ -24,6 +31,10 @@ clearvars
 % Define where the PLY surfaces are stored, as datadir
 % --> CHANGE THIS LINE TO REFLECT YOUR LOCAL FILEPATH
 datadir = '../../3D_surface_models/sqh_knockdown/';
+
+% resolution of the PLYs, in um / voxel width. Make sure the PLYs are saved
+% with this resolution, and in isotropic resolution (same for x, y, and z)
+pix2um = 1.0 ;  % um / pixel
 
 % Add DECLab to the path: https://github.com/DillonCislo/DECLab
 % This is a submodule of the SeptinManuscriptData repo.
@@ -73,7 +84,9 @@ for ii = 1:length(fns)
     if ~exist(outfn1, 'file') || overwrite 
 
         mesh = read_ply_mod(fullfile(fns(ii).folder, [fn '.ply'])) ;
-
+        % Convert mesh to microns
+        mesh.v = mesh.v * pix2um ;
+        
         %% Conformally map to the unit sphere
         clf
         Ufn = fullfile(outdir, ...
