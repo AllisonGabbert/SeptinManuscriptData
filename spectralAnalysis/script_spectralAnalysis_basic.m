@@ -34,7 +34,7 @@ datadir = '../../3D_surface_models/sqh_knockdown/';
 
 % resolution of the PLYs, in um / voxel width. Make sure the PLYs are saved
 % with this resolution, and in isotropic resolution (same for x, y, and z)
-pix2um = 1.0 ;  % um / pixel
+pix2um = 0.0302 ;  % um / pixel
 
 % Add DECLab to the path: https://github.com/DillonCislo/DECLab
 % This is a submodule of the SeptinManuscriptData repo.
