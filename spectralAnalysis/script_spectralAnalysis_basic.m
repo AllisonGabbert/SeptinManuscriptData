@@ -34,7 +34,7 @@ datadir = '../../3D_surface_models/sqh_knockdown/';
 
 % resolution of the PLYs, in um / voxel width. Make sure the PLYs are saved
 % with this resolution, and in isotropic resolution (same for x, y, and z)
-pix2um = 0.0302 ;  % um / pixel
+pix2um_global = 0.0302 ;  % um / pixel
 
 % Add DECLab to the path: https://github.com/DillonCislo/DECLab
 % This is a submodule of the SeptinManuscriptData repo.
@@ -84,6 +84,15 @@ for ii = 1:length(fns)
     if ~exist(outfn1, 'file') || overwrite 
 
         mesh = read_ply_mod(fullfile(fns(ii).folder, [fn '.ply'])) ;
+        
+        % Identify an experiment-specific pixel resolution if saved to
+        % disk
+        if exist(fullfile(fns(ii).folder, [fn '_resolution.txt']), 'file')
+            pix2um = dlmread([fn '_resolution.txt']) ;
+        else
+            pix2um = pix2um_global ;
+        end
+
         % Convert mesh to microns
         mesh.v = mesh.v * pix2um ;
         

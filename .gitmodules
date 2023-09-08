@@ -1,9 +1,6 @@
 [submodule "imsane"]
 	path = imsane
 	url = https://github.com/idse/imsane
-[submodule "tubular"]
-	path = tubular
-	url = https://github.com/npmitchell/tubular
 [submodule "gptoolbox"]
 	path = gptoolbox
 	url = https://github.com/alecjacobson/gptoolbox
