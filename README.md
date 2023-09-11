@@ -6,7 +6,7 @@ This code was used to perform 2D geomstats shape analysis, generate 3D surface t
 # STAR Protocol Code
 Some of this code can be used and modified to generate 3D models and perform spectral decomposition analysis with new data, described in detail in the STAR Protocol manuscript.
 
-## Pre-requisites
+## Pre-requisites to follow STAR Protocol
 - [MATLAB](https://www.mathworks.com/)
   - Deep Learning Toolbox
   - Image Processing Toolbox
@@ -16,11 +16,11 @@ Some of this code can be used and modified to generate 3D models and perform spe
 - [Ilastik](https://www.ilastik.org/)
 - [MeshLab](https://www.meshlab.net/)
 - Github scripts and folders
-  - Tissue Cartography Modeling script
-  - Spectral Decomposition script
+  - STAR_Methods_Tissue_Cartography_Modeling (to generate 3D models)
+  - SpectralAnalysis folder
+      - script_spectralAnalysis_basic (to perform spectral analysis on a single sample)
+      - script_spectralAnalysis_acrossConditions (to compare multiple genotypes or conditions)
   - ImSAnE folder
-  - gut_matlab folder
-  - tubular folder
   - gptoolbox folder
   - external folder
 
