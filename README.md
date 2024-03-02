@@ -1,6 +1,6 @@
 # SeptinManuscriptData
 Code for Gabbert, et. al. Septins regulate border cell surface geometry, shape, and motility downstream of Rho in _Drosophila_. 
-Developmental Cell 2023.
+Developmental Cell 2023 and corresponding article Gabbert, et. al. Protocol for 3D surface texture modeling and quantitative spectral decomposition analysis in _Drosophila_ border cell clusters. STAR Protocols 2024.
 This code was used to perform 2D geomstats shape analysis, generate 3D surface texture models, and perform spectral decomposition analysis.
 
 # STAR Protocol Code
