@@ -33,11 +33,11 @@ fileMeta.timePoints      = [1];
 
 % In ImageJ, select 'Image', then 'show info' and input the width, height, and depth into
 % the following line
-fileMeta.stackSize       = [1120,1120,226]; %[width, height, depth]
+fileMeta.stackSize       = [x,y,z]; %[width, height, depth]
 
 % In ImageJ, select 'Image', then 'properties' and input the pixel width and
 % height and the voxel depth in the following line
-fileMeta.stackResolution = [.0302 .0302 .16]; %[pixel width, pixel height, voxel depth]
+fileMeta.stackResolution = [.0341 .0341 .16]; %[pixel width, pixel height, voxel depth]
 fileMeta.swapZT          = 0;
 
 expMeta                  = struct();
@@ -60,8 +60,23 @@ xp.rescaleStackToUnitAspect();
 
 %% Detect the surface
 
-% For Single Time
 % Input your file name in the myDetectOpts function below, in place of '/MYFILENAME'
+
+% Segmentation based on prediction maps from ilastik.
+% options: channel : channel of the stack to use
+% sigma : width of the Gaussian
+% ssfactor : sub-sampling factor used in the ilastik
+% classifier.
+% rmRadialOutliers : remove radial outlier >
+% rmRadialOutliers*sigma (set zero for none)
+% thresh : threshold of intensity to be foreground between 0 and 1
+% amin : minimal connectec foreground pixel size
+% dildisc : radius of dilation disc
+% fileName: Name of the ilastik prediction file. Typically
+% ending with Probabilities.h5 in Ilastik v1.1
+% foreGroundChannel: the labeled used in ilastik as foreground default is 2. 
+%(for two classes, 1 would then be the background).
+% zdim: cylinder axis in matlab coords, 2 = x
 myDetectOpts = struct('channel', 1, 'sigma', 2, 'ssfactor',4,...
            'rmRadialOutliers', 10,'thresh',.6,'amin', 200,'dildisc',4,...
            'fileName',[xp.fileMeta.dataDir, '/MYFILENAME'],...
