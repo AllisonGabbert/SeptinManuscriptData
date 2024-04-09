@@ -491,17 +491,17 @@ for thres = 6
     oe_unc = sqrt(sum((stePowers{3}(lls > thres & lls < upperThres, :)).^2)) ;
 
     % pvalue
-    num = kd-wt ;
+    num = -abs(kd-wt) ;
     denom = sqrt(kd_unc.^2 + wt_unc.^2) ;
     zscore_kdwt = num / denom ;
     pval_kdwt = normcdf(zscore_kdwt);
 
-    num = kd-oe ;
+    num = -abs(kd-oe) ;
     denom = sqrt(kd_unc.^2 + oe_unc.^2) ;
     zscore_kdoe = num / denom ;
     pval_kdoe = normcdf(zscore_kdoe);
 
-    num = wt-oe ;
+    num = -abs(wt-oe) ;
     denom = sqrt(oe_unc.^2 + wt_unc.^2) ;
     zscore_wtoe = num / denom ;
     pval_wtoe = normcdf(zscore_wtoe);
