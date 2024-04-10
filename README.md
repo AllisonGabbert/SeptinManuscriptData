@@ -12,7 +12,10 @@ Protocol for 3D surface texture modeling and quantitative spectral decomposition
   - Deep Learning Toolbox
   - Image Processing Toolbox
   - Statistics and Machine Learning Toolbox
-  - Curve Fitting Toolbox   
+  - Curve Fitting Toolbox
+  - Computer Vision Toolbox
+  - raacampbell/shadedErrorBar
+  - superbar
 - [ImageJ/FIJI](https://fiji.sc/) 
 - [Ilastik](https://www.ilastik.org/)
 - [MeshLab](https://www.meshlab.net/)
