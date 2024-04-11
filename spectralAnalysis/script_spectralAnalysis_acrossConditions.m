@@ -249,6 +249,12 @@ for jj = 1:length(dirs)
                 % plot( abs(x), '.-', 'LineWidth', 0.5, 'MarkerFaceColor', 'b' );
                 clf
                 % subplot(1, 2, 1)
+                colors = [
+                    0.90    0.55    0.55
+                    0.5     0.5     0.5
+                    0.62    0.76    0.84 
+                    ];
+                
                 bar(abs(rawPowers), 'FaceColor',colors(1, :),'EdgeColor','none')
                 xlabel('spherical harmonic index (spectral shape index)')
                 ylabel('spectral weight')
