@@ -1,7 +1,7 @@
 %% Initialize ImSAnE project
 % Start by installing toolboxes from MATLAB - Deep Learning Toolbox,
 % Image Processing Toolbox, Statistics and Machine Learning Toolbox, 
-% Curve Fitting Toolbox, Curvature Estimation on Triangle Mesh Package.
+% Curve Fitting Toolbox, Curvature Estimationl On triangle mesh Package.
 
 % Then, download the ImSAnE repo (https://github.com/idse/imsane). 
 %Run the setup.m file from the ImSAnE repo, which will initialize ImSAnE.
