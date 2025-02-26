@@ -16,7 +16,7 @@ Protocol for 3D surface texture modeling and quantitative spectral decomposition
   - Computer Vision Toolbox
   - raacampbell/shadedErrorBar
   - superbar
-  - Curvature Estimation on Triangle Mesh Package
+  - Curvature Estimationl On triangle mesh Package
 - [ImageJ/FIJI](https://fiji.sc/) 
 - [Ilastik](https://www.ilastik.org/)
 - [MeshLab](https://www.meshlab.net/)
